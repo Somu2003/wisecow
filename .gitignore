@@ -1,0 +1,23 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+logs/
+
+# TLS certificates (regenerated locally)
+tls/certs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
