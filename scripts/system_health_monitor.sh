@@ -46,7 +46,7 @@ print_header() {
     echo -e "${NC}"
     echo "Host:       $(hostname)"
     echo "Date:       $(timestamp)"
-    echo "Uptime:     $(uptime -p 2>/dev/null || uptime)"
+    echo "Uptime:     $(uptime -p 2>/dev/null || uptime 2>/dev/null || echo 'N/A')"
     echo "Kernel:     $(uname -r)"
     echo ""
 }
@@ -54,7 +54,7 @@ print_header() {
 check_cpu() {
     echo -e "${BOLD}📊 CPU Usage:${NC}"
     local cpu_usage cpu_int
-    cpu_usage=$(top -bn1 2>/dev/null | grep "Cpu(s)" | awk '{print $2 + $4}' || echo "0")
+    cpu_usage=$(top -bn1 2>/dev/null | grep "Cpu(s)" | awk '{print $2 + $4}' 2>/dev/null || grep -m1 'cpu ' /proc/stat 2>/dev/null | awk '{usage=($2+$4)*100/($2+$4+$5); printf "%.1f", usage}' 2>/dev/null || echo "0")
     cpu_int=$(echo "${cpu_usage}" | cut -d. -f1)
     if (( cpu_int >= CPU_THRESHOLD )); then
         log_message "CRITICAL" "CPU: ${cpu_usage}% (threshold: ${CPU_THRESHOLD}%)"
@@ -108,7 +108,7 @@ check_disk() {
         if (( usage >= DISK_THRESHOLD )); then
             echo -e "  ${RED}⚠️  ${mount}: ${usage}% [${used}/${size}]${NC}"
             log_message "CRITICAL" "Disk ${mount}: ${usage}% (threshold: ${DISK_THRESHOLD}%)"
-            ((alerts++))
+            alerts=$((alerts+1))
         elif (( usage >= DISK_THRESHOLD - 10 )); then
             echo -e "  ${YELLOW}⚡ ${mount}: ${usage}% [${used}/${size}]${NC}"
             log_message "WARNING" "Disk ${mount}: ${usage}%"
@@ -190,21 +190,21 @@ print_summary() {
 run_health_check() {
     local tc=0 p=0 f=0 w=0
     print_header
-    ((tc++)); check_cpu && ((p++)) || ((f++))
+    tc=$((tc+1)); check_cpu && p=$((p+1)) || f=$((f+1))
     echo ""
-    ((tc++)); check_memory && ((p++)) || ((f++))
+    tc=$((tc+1)); check_memory && p=$((p+1)) || f=$((f+1))
     echo ""
-    ((tc++)); check_disk && ((p++)) || ((f++))
+    tc=$((tc+1)); check_disk && p=$((p+1)) || f=$((f+1))
     echo ""
-    ((tc++)); check_processes && ((p++)) || ((f++))
+    tc=$((tc+1)); check_processes && p=$((p+1)) || f=$((f+1))
     echo ""
-    ((tc++)); check_load && ((p++)) || ((f++))
+    tc=$((tc+1)); check_load && p=$((p+1)) || f=$((f+1))
     echo ""
-    ((tc++)); check_network && ((p++)) || ((w++))
+    tc=$((tc+1)); check_network && p=$((p+1)) || w=$((w+1))
     echo ""
     print_summary "${tc}" "${p}" "${f}" "${w}"
-    (( f > 0 )) && return 2
-    (( w > 0 )) && return 1
+    [[ $f -gt 0 ]] && return 2
+    [[ $w -gt 0 ]] && return 1
     return 0
 }
 # ============================================================
