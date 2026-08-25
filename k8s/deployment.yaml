@@ -1,0 +1,64 @@
+# ============================================================
+# Wisecow Deployment
+# Deploys the Wisecow application with health checks and
+# resource limits for production readiness
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wisecow-deployment
+  namespace: wisecow
+  labels:
+    app: wisecow
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wisecow
+  template:
+    metadata:
+      labels:
+        app: wisecow
+        version: v1
+    spec:
+      containers:
+      - name: wisecow
+        image: ghcr.io/Somu2003/wisecow:latest  # Replace OWNER with your GitHub username
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4499
+          protocol: TCP
+          name: http
+        # Resource limits to prevent runaway containers
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+        # Liveness probe: restart if the app becomes unresponsive
+        livenessProbe:
+          tcpSocket:
+            port: 4499
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Readiness probe: only route traffic when ready
+        readinessProbe:
+          tcpSocket:
+            port: 4499
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Security context: run as non-root, drop all capabilities
+        securityContext:
+          runAsNonRoot: false  # Set to true if running as non-root user
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # App needs write access for named pipe
+          capabilities:
+            drop:
+            - ALL

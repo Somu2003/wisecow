@@ -1,0 +1,11 @@
+# ============================================================
+# Wisecow Namespace
+# Dedicated namespace for the Wisecow application
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wisecow
+  labels:
+    app: wisecow
+    environment: production

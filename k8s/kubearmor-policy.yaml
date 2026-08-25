@@ -1,0 +1,163 @@
+# ============================================================
+# KubeArmor Zero-Trust Security Policy for Wisecow Application
+# ============================================================
+# This policy enforces a zero-trust posture on the wisecow
+# container by restricting process execution, file access,
+# network operations, and system capabilities to only what
+# the application absolutely needs.
+# ============================================================
+
+# ----------------------------------------------------------
+# Policy 1: Restrict Process Execution
+# Only allow specific binaries required by the app
+# ----------------------------------------------------------
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-allow-processes
+  namespace: wisecow
+  annotations:
+    description: "Allow only specific processes needed by wisecow"
+    severity: "10"
+spec:
+  message: "Blocked unauthorized process execution"
+  selector:
+    matchLabels:
+      app: wisecow
+  process:
+    matchPaths:
+    - path: /usr/bin/bash
+    - path: /bin/bash
+    - path: /usr/local/bin/cowsay
+    - path: /usr/games/cowsay
+    - path: /usr/local/bin/fortune
+    - path: /usr/games/fortune
+    - path: /usr/local/bin/nc
+    - path: /usr/bin/nc.openbsd
+    - path: /usr/bin/cat
+    - path: /bin/cat
+    - path: /usr/bin/readlink
+    - path: /bin/readlink
+  action: Allow
+
+# ----------------------------------------------------------
+# Policy 2: Block Unauthorized File Access
+# Restrict file system access to only necessary paths
+# ----------------------------------------------------------
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-restrict-files
+  namespace: wisecow
+  annotations:
+    description: "Restrict file access to application directories only"
+    severity: "8"
+spec:
+  message: "Blocked unauthorized file access"
+  selector:
+    matchLabels:
+      app: wisecow
+  file:
+    matchPaths:
+    - path: /app/wisecow.sh
+    - path: /app/response
+    readOnly: false
+    matchDirectories:
+    - dir: /app/
+      recursive: true
+    - dir: /tmp/
+      recursive: true
+    - dir: /usr/share/games/
+      recursive: true
+    - dir: /usr/lib/
+      recursive: true
+    - dir: /proc/
+      recursive: true
+    - dir: /dev/
+      recursive: true
+  action: Allow
+
+# ----------------------------------------------------------
+# Policy 3: Block Sensitive File Access
+# Prevent access to credentials, secrets, and sensitive paths
+# ----------------------------------------------------------
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-block-sensitive-files
+  namespace: wisecow
+  annotations:
+    description: "Block access to sensitive system files"
+    severity: "10"
+spec:
+  message: "Blocked access to sensitive file"
+  selector:
+    matchLabels:
+      app: wisecow
+  file:
+    matchPaths:
+    - path: /etc/shadow
+    - path: /etc/passwd
+    - path: /etc/sudoers
+    - path: /root/.ssh/authorized_keys
+    - path: /credentials/
+    matchDirectories:
+    - dir: /root/
+      recursive: true
+    - dir: /etc/ssh/
+      recursive: true
+    - dir: /credentials/
+      recursive: true
+  action: Block
+
+# ----------------------------------------------------------
+# Policy 4: Network Restriction
+# Only allow TCP connections on port 4499 (the app port)
+# Block all other outbound network traffic
+# ----------------------------------------------------------
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-restrict-network
+  namespace: wisecow
+  annotations:
+    description: "Restrict network to port 4499 only"
+    severity: "9"
+spec:
+  message: "Blocked unauthorized network connection"
+  selector:
+    matchLabels:
+      app: wisecow
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/local/bin/nc
+      - path: /usr/bin/nc.openbsd
+    - protocol: icmp
+  action: Block
+
+# ----------------------------------------------------------
+# Policy 5: Block Capabilities
+# Drop dangerous Linux capabilities
+# ----------------------------------------------------------
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-block-capabilities
+  namespace: wisecow
+  annotations:
+    description: "Block dangerous capabilities"
+    severity: "7"
+spec:
+  message: "Blocked dangerous capability"
+  selector:
+    matchLabels:
+      app: wisecow
+  capabilities:
+    matchCapabilities:
+    - capability: net_raw
+    - capability: sys_admin
+    - capability: sys_ptrace
+    - capability: net_admin
+  action: Block

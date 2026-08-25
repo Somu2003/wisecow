@@ -1,0 +1,37 @@
+# ============================================================
+# Wisecow Ingress with TLS
+# Routes external HTTPS traffic to the wisecow-service
+# with TLS termination at the ingress controller
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wisecow-ingress
+  namespace: wisecow
+  labels:
+    app: wisecow
+  annotations:
+    # Nginx Ingress annotations
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    # For Let's Encrypt (production), uncomment:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - wisecow.local
+    secretName: wisecow-tls
+  rules:
+  - host: wisecow.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wisecow-service
+            port:
+              number: 80
