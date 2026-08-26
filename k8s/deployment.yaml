@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: wisecow
-        image: ghcr.io/Somu2003/wisecow:latest  # Replace OWNER with your GitHub username
+        image: ghcr.io/somu2003/wisecow:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 4499

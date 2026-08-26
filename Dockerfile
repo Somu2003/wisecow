@@ -4,36 +4,20 @@
 # ============================================================
 
 # Use Debian slim as base for minimal image size
-FROM debian:bullseye-slim AS builder
+FROM debian:bullseye-slim
 
-# Install runtime dependencies
+# Install runtime dependencies and add /usr/games to PATH
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         fortune-mod \
+        fortunes-min \
         cowsay \
         netcat-openbsd \
         bash && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# ============================================================
-# Production stage
-# ============================================================
-FROM debian:bullseye-slim
-
-# Copy installed packages from builder
-COPY --from=builder /usr/games/cowsay /usr/games/cowsay
-COPY --from=builder /usr/games/fortune /usr/games/fortune
-COPY --from=builder /usr/bin/nc.openbsd /usr/bin/nc.openbsd
-COPY --from=builder /usr/bin/bash /usr/bin/bash
-
-# Copy fortune data files
-COPY --from=builder /usr/share/games/ /usr/share/games/
-
-# Create symlinks for cowsay and fortune in PATH
-RUN ln -s /usr/games/cowsay /usr/local/bin/cowsay && \
-    ln -s /usr/games/fortune /usr/local/bin/fortune && \
-    ln -s /usr/bin/nc.openbsd /usr/local/bin/nc
+ENV PATH="/usr/games:/usr/local/bin:${PATH}"
 
 # Copy application script
 WORKDIR /app
