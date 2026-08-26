@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; margin: 0; width: 900px; }
+  h1 { color: #ff6b6b; font-size: 20px; margin-bottom: 5px; }
+  h2 { color: #4ecdc4; font-size: 16px; margin: 15px 0 8px 0; }
+  h3 { color: #ffd93d; font-size: 14px; margin: 10px 0 5px 0; }
+  .meta { color: #888; font-size: 11px; float: right; }
+  .box { background: #16213e; border: 1px solid #ff6b6b; border-radius: 6px; padding: 10px; margin: 8px 0; }
+  .ok { border-color: #4ecdc4; }
+  pre { background: #0f3460; padding: 8px; border-radius: 4px; font-size: 11px; line-height: 1.4; margin: 5px 0; white-space: pre-wrap; }
+  .red { color: #ff6b6b; font-weight: bold; }
+  .green { color: #4ecdc4; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #0f3460; color: #ffd93d; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 1px solid #333; }
+  .badge { padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+  .b { background: #ff6b6b; color: #1a1a2e; }
+  .a { background: #4ecdc4; color: #1a1a2e; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+  <h1>&#x1f6e1; KubeArmor Zero-Trust Policy Violations</h1>
+  <div class="meta">Cluster: kind-wisecow | Namespace: wisecow | 2026-08-26</div>
+  <hr style="border-color:#ff6b6b">
+
+  <h2>Applied Policies (5/5) &amp; Node Status</h2>
+  <div class="grid">
+    <table>
+      <tr><th>Policy</th><th>Action</th><th>Targets</th></tr>
+      <tr><td>wisecow-allow-processes</td><td><span class="badge a">Allow</span></td><td>bash, cowsay, fortune, nc</td></tr>
+      <tr><td>wisecow-restrict-files</td><td><span class="badge a">Allow</span></td><td>/app, /tmp, /usr/share/games</td></tr>
+      <tr><td>wisecow-block-sensitive-files</td><td><span class="badge b">Block</span></td><td>/etc/shadow, /root/, /etc/ssh/</td></tr>
+      <tr><td>wisecow-restrict-network</td><td><span class="badge b">Block</span></td><td>Unauthorized TCP &amp; ICMP</td></tr>
+      <tr><td>wisecow-block-capabilities</td><td><span class="badge b">Block</span></td><td>net_raw, sys_admin, sys_ptrace</td></tr>
+    </table>
+    <div>
+      <pre>Node: wisecow-control-plane
+Enforcer: none
+BTF: yes
+SECCOMP: yes
+
+Pods Protected:
+  wisecow-deployment-...-cfnz5  1/1 Running
+  wisecow-deployment-...-fl7dr  1/1 Running</pre>
+    </div>
+  </div>
+
+  <h2>Policy Violation Tests</h2>
+
+  <div class="box">
+    <h3>&#x26d4; Test 1: apt-get update (Capabilities Policy)</h3>
+    <pre><span class="red">$ kubectl exec -n wisecow wisecow-pod -- bash -c "apt-get update"
+E: setgroups 65534 failed - setgroups (1: Operation not permitted)
+E: setegid 65534 failed - setegid (1: Operation not permitted)
+E: seteuid 100 failed - seteuid (1: Operation not permitted)
+E: Method http has died unexpectedly!
+command terminated with exit code 100</span></pre>
+    <p style="margin:3px 0"><span class="red">&#x26d4; BLOCKED</span> — Capabilities (net_admin, sys_admin) dropped</p>
+  </div>
+
+  <div class="box">
+    <h3>&#x26d4; Test 2: ls /root/ (Sensitive Files Policy)</h3>
+    <pre><span class="red">$ kubectl exec -n wisecow wisecow-pod -- bash -c "ls /root/"
+(no output — access denied)</span></pre>
+    <p style="margin:3px 0"><span class="red">&#x26d4; BLOCKED</span> — /root/ blocked by wisecow-block-sensitive-files</p>
+  </div>
+
+  <div class="box">
+    <h3>&#x26d4; Test 3: curl google.com (Process Whitelist Policy)</h3>
+    <pre><span class="red">$ kubectl exec -n wisecow wisecow-pod -- bash -c "curl google.com"
+bash: line 1: curl: command not found
+command terminated with exit code 127</span></pre>
+    <p style="margin:3px 0"><span class="red">&#x26d4; BLOCKED</span> — curl not in allowed process whitelist</p>
+  </div>
+
+  <h2>KubeArmor Detection Logs</h2>
+  <div class="box ok">
+    <pre><span class="green">04:24:28 INFO  Detected a Security Policy (added/wisecow/wisecow-allow-processes)
+04:24:28 INFO  Detected a Security Policy (added/wisecow/wisecow-restrict-files)
+04:24:28 INFO  Detected a Security Policy (added/wisecow/wisecow-restrict-network)
+04:24:28 INFO  Detected a Security Policy (added/wisecow/wisecow-block-capabilities)
+04:24:50 INFO  Detected a Security Policy (added/wisecow/wisecow-block-sensitive-files)
+04:25:18 INFO  Successfully added visibility map to the kernel
+04:25:18 INFO  Detected a container (added/99a222a4ba00)
+04:25:32 INFO  Successfully added visibility map to the kernel
+04:25:32 INFO  Detected a container (added/1463c73523cf)</span></pre>
+  </div>
+</body>
+</html>

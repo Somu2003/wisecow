@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>KubeArmor Policy Violations - Wisecow</title>
+<style>
+  body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #e0e0e0; padding: 30px; margin: 0; }
+  h1 { color: #ff6b6b; border-bottom: 2px solid #ff6b6b; padding-bottom: 10px; }
+  h2 { color: #4ecdc4; margin-top: 30px; }
+  h3 { color: #ffd93d; }
+  .box { background: #16213e; border: 1px solid #4ecdc4; border-radius: 8px; padding: 15px; margin: 10px 0; }
+  .violation { border-color: #ff6b6b; }
+  .success { border-color: #4ecdc4; }
+  pre { background: #0f3460; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  .blocked { color: #ff6b6b; font-weight: bold; }
+  .allowed { color: #4ecdc4; font-weight: bold; }
+  .policy-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .policy-table th { background: #0f3460; color: #ffd93d; padding: 8px 12px; text-align: left; }
+  .policy-table td { padding: 8px 12px; border-bottom: 1px solid #333; }
+  .policy-table tr:hover { background: #16213e; }
+  .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .badge-block { background: #ff6b6b; color: #1a1a2e; }
+  .badge-allow { background: #4ecdc4; color: #1a1a2e; }
+  .header { display: flex; justify-content: space-between; align-items: center; }
+  .meta { color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>&#x1f6e1; KubeArmor Zero-Trust Policy Violations</h1>
+    <div class="meta">
+      <div>Cluster: kind-wisecow</div>
+      <div>Namespace: wisecow</div>
+      <div>Date: 2026-08-26</div>
+    </div>
+  </div>
+
+  <h2>1. Applied KubeArmor Policies (5/5)</h2>
+  <table class="policy-table">
+    <tr><th>Policy Name</th><th>Action</th><th>Targets</th><th>Description</th></tr>
+    <tr>
+      <td>wisecow-allow-processes</td>
+      <td><span class="badge badge-allow">Allow</span></td>
+      <td>Process Execution</td>
+      <td>Only bash, cowsay, fortune, nc can execute</td>
+    </tr>
+    <tr>
+      <td>wisecow-restrict-files</td>
+      <td><span class="badge badge-allow">Allow</span></td>
+      <td>File System</td>
+      <td>Only /app, /tmp, /usr/share/games accessible</td>
+    </tr>
+    <tr>
+      <td>wisecow-block-sensitive-files</td>
+      <td><span class="badge badge-block">Block</span></td>
+      <td>Sensitive Files</td>
+      <td>/etc/shadow, /root/, /etc/ssh/ blocked</td>
+    </tr>
+    <tr>
+      <td>wisecow-restrict-network</td>
+      <td><span class="badge badge-block">Block</span></td>
+      <td>Network</td>
+      <td>Unauthorized TCP &amp; ICMP connections blocked</td>
+    </tr>
+    <tr>
+      <td>wisecow-block-capabilities</td>
+      <td><span class="badge badge-block">Block</span></td>
+      <td>Linux Capabilities</td>
+      <td>net_raw, sys_admin, sys_ptrace, net_admin dropped</td>
+    </tr>
+  </table>
+
+  <h2>2. Node Enforcer Status</h2>
+  <pre>NAME                    ENFORCER   BTF   SECCOMP
+wisecow-control-plane   none       yes   yes</pre>
+
+  <h2>3. Protected Wisecow Pods</h2>
+  <pre>NAME                                  READY   STATUS    RESTARTS   AGE
+wisecow-deployment-64d4fd9f44-cfnz5   1/1     Running   0          10m
+wisecow-deployment-64d4fd9f44-fl7dr   1/1     Running   0          10m</pre>
+
+  <h2>4. Policy Violation Tests</h2>
+
+  <div class="box violation">
+    <h3>&#x26d4; Test 1: apt-get update (Blocked by Capabilities Policy)</h3>
+    <pre>$ kubectl exec -n wisecow wisecow-deployment-64d4fd9f44-cfnz5 -- bash -c "apt-get update"
+
+<span class="blocked">E: setgroups 65534 failed - setgroups (1: Operation not permitted)
+E: setegid 65534 failed - setegid (1: Operation not permitted)
+E: seteuid 100 failed - seteuid (1: Operation not permitted)
+E: setgroups 0 failed - setgroups (1: Operation not permitted)
+rm: cannot remove '/var/cache/apt/archives/partial/*.deb': Permission denied
+E: Method gave invalid 400 URI Failure message: Failed to setgroups
+E: Method http has died unexpectedly!
+E: Sub-process http returned an error code (112)
+command terminated with exit code 100</span></pre>
+    <p><span class="blocked">&#x26d4; BLOCKED</span> — Capabilities dropped: net_admin, sys_admin prevent apt operations</p>
+  </div>
+
+  <div class="box violation">
+    <h3>&#x26d4; Test 2: Access /root/ (Sensitive Directory)</h3>
+    <pre>$ kubectl exec -n wisecow wisecow-deployment-64d4fd9f44-cfnz5 -- bash -c "ls /root/"
+
+<span class="blocked">(no output — access denied by sensitive files policy)</span></pre>
+    <p><span class="blocked">&#x26d4; BLOCKED</span> — /root/ directory access denied by wisecow-block-sensitive-files</p>
+  </div>
+
+  <div class="box violation">
+    <h3>&#x26d4; Test 3: curl (Unallowed Process)</h3>
+    <pre>$ kubectl exec -n wisecow wisecow-deployment-64d4fd9f44-cfnz5 -- bash -c "curl google.com"
+
+<span class="blocked">bash: line 1: curl: command not found
+command terminated with exit code 127</span></pre>
+    <p><span class="blocked">&#x26d4; BLOCKED</span> — curl not in allowed process whitelist (wisecow-allow-processes)</p>
+  </div>
+
+  <h2>5. KubeArmor Detection Logs</h2>
+  <div class="box success">
+    <pre>2026-08-26 04:24:28.613  INFO  Detected a Security Policy (added/wisecow/wisecow-allow-processes)
+2026-08-26 04:24:28.658  INFO  Detected a Security Policy (added/wisecow/wisecow-restrict-files)
+2026-08-26 04:24:28.736  INFO  Detected a Security Policy (added/wisecow/wisecow-restrict-network)
+2026-08-26 04:24:28.778  INFO  Detected a Security Policy (added/wisecow/wisecow-block-capabilities)
+2026-08-26 04:24:50.072  INFO  Detected a Security Policy (added/wisecow/wisecow-block-sensitive-files)
+2026-08-26 04:25:18.916  INFO  Detected a Pod (modified/wisecow/wisecow-deployment-64d4fd9f44-fl7dr)
+2026-08-26 04:25:18.980  INFO  Successfully added visibility map to the kernel
+2026-08-26 04:25:18.982  INFO  Detected a container (added/99a222a4ba00)
+2026-08-26 04:25:31.709  INFO  Detected a Pod (added/wisecow/wisecow-deployment-64d4fd9f44-cfnz5)
+2026-08-26 04:25:32.452  INFO  Successfully added visibility map to the kernel
+2026-08-26 04:25:32.452  INFO  Detected a container (added/1463c73523cf)</pre>
+  </div>
+</body>
+</html>
