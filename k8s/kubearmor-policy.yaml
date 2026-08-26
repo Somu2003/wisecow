@@ -39,7 +39,7 @@ spec:
     - path: /usr/bin/readlink
     - path: /bin/readlink
   action: Allow
-
+---
 # ----------------------------------------------------------
 # Policy 2: Block Unauthorized File Access
 # Restrict file system access to only necessary paths
@@ -61,7 +61,7 @@ spec:
     matchPaths:
     - path: /app/wisecow.sh
     - path: /app/response
-    readOnly: false
+      readOnly: false
     matchDirectories:
     - dir: /app/
       recursive: true
@@ -76,7 +76,7 @@ spec:
     - dir: /dev/
       recursive: true
   action: Allow
-
+---
 # ----------------------------------------------------------
 # Policy 3: Block Sensitive File Access
 # Prevent access to credentials, secrets, and sensitive paths
@@ -100,7 +100,6 @@ spec:
     - path: /etc/passwd
     - path: /etc/sudoers
     - path: /root/.ssh/authorized_keys
-    - path: /credentials/
     matchDirectories:
     - dir: /root/
       recursive: true
@@ -109,7 +108,7 @@ spec:
     - dir: /credentials/
       recursive: true
   action: Block
-
+---
 # ----------------------------------------------------------
 # Policy 4: Network Restriction
 # Only allow TCP connections on port 4499 (the app port)
@@ -136,7 +135,7 @@ spec:
       - path: /usr/bin/nc.openbsd
     - protocol: icmp
   action: Block
-
+---
 # ----------------------------------------------------------
 # Policy 5: Block Capabilities
 # Drop dangerous Linux capabilities
