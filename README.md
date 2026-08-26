@@ -205,3 +205,4 @@ kubectl apply -f k8s/kubearmor-policy.yaml
 ## License
 
 This project is part of the Accuknox DevOps Trainee Practical Assessment.
+# CI/CD pipeline triggered
